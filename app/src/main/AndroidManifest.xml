@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Runs on Android TV / Google TV / Fire TV; no touchscreen needed. -->
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <!-- Draw the athan alert over whatever app is playing. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Exact prayer-time alarms. USE_EXACT_ALARM is auto-granted on Android 13+;
+         SCHEDULE_EXACT_ALARM covers Android 12 / 12L. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+    <!-- Re-arm alarms after a reboot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Play the athan as a foreground media service. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Download an athan from a link and accept uploads from a phone on the home network. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Pick an athan already on the TV or a USB drive. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
+    <application
+        android:allowBackup="false"
+        android:banner="@drawable/banner"
+        android:icon="@mipmap/ic_launcher"
+        android:label="Athan TV"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".SettingsActivity" android:exported="false" />
+        <activity android:name=".SoundActivity" android:exported="false" />
+
+        <receiver android:name=".AlarmReceiver" android:exported="false" />
+
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".AthanService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+    </application>
+</manifest>

@@ -1,0 +1,68 @@
+name: Build Athan TV APK
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write # only used to attach the APK when you push a v* tag
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Make the wrapper executable (lost when files are uploaded through the website)
+        run: chmod +x gradlew
+
+      - name: Unit tests (prayer times vs. Aladhan reference data)
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Load private release key (optional, from repository secrets)
+        env:
+          KS_B64: ${{ secrets.ATHAN_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/athan.jks"
+            echo "ATHAN_KEYSTORE_PATH=$RUNNER_TEMP/athan.jks" >> "$GITHUB_ENV"
+            echo "Signing with your private release key."
+          else
+            echo "Signing with the project's fixed debug key (keystore/athantv-debug.p12)."
+          fi
+
+      - name: Build APK
+        env:
+          ATHAN_KEYSTORE_PASSWORD: ${{ secrets.ATHAN_KEYSTORE_PASSWORD }}
+          ATHAN_KEY_ALIAS: ${{ secrets.ATHAN_KEY_ALIAS }}
+          ATHAN_KEY_PASSWORD: ${{ secrets.ATHAN_KEY_PASSWORD }}
+        run: |
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk AthanTV.apk
+          sha256sum AthanTV.apk | tee AthanTV.apk.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AthanTV-apk
+          path: |
+            AthanTV.apk
+            AthanTV.apk.sha256
+
+      - name: Attach APK to a GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" AthanTV.apk AthanTV.apk.sha256 --clobber
